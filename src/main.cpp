@@ -37,8 +37,10 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <DHT.h>
-#include <FirebaseESP32.h>
-#include <FirebaseJson.h>
+#include <Firebase_ESP_Client.h>
+// #include <FirebaseJson.h>  // Removed – JSON handling is built‑in with Firebase_ESP_Client
+#include <addons/TokenHelper.h>
+#include <addons/RTDBHelper.h>
 
 /* ---------------------------  Pin definitions  --------------------------- */
 #define PIN_DHT          4          // DHT22 data pin
@@ -59,8 +61,8 @@
 #define OLED_RESET      -1          // no reset pin
 
 /* ---------------------------  Wi‑Fi / Firebase  -------------------------- */
-const char* WIFI_SSID     = "";      // <-- fill in your SSID
-const char* WIFI_PASSWORD = "";      // <-- fill in your password
+const char* WIFI_SSID     = "kkk";      // <-- fill in your SSID
+const char* WIFI_PASSWORD = "vinh123490";      // <-- fill in your password
 
 // Firebase project details – replace with your own values
 #define FIREBASE_HOST    "your-project-id.firebaseio.com"
@@ -202,7 +204,7 @@ void updateDisplay(float temperature, float humidity,
                    uint8_t statusLevel)
 {
     display.clearDisplay();
-    display.setTextSize(1);
+    display.setTextSize(1.2);
     display.setTextColor(SSD1306_WHITE);
     display.setCursor(0, 0);
 
@@ -290,14 +292,14 @@ void setup()
     config.host = FIREBASE_HOST;
     config.signer.tokens.legacy_token = FIREBASE_AUTH;   // for Realtime DB
     // Optional: set a connection timeout, keep‑alive, etc.
-    if (!Firebase.begin(&config, &auth))
+    /*if (!Firebase.begin(&config, &auth))
     {
         Serial.printf("❌ Firebase init failed: %s\n", auth.errorReason().c_str());
     }
     else
     {
         Serial.println("✅ Firebase initialized");
-    }
+    }*/
 
     /* ---- Initial state ---- */
     digitalWrite(PIN_LED_GREEN, HIGH);   // start in normal mode
@@ -333,12 +335,22 @@ void loop()
 
     /* ---- 6. Periodic Firebase upload ------------------------------------ */
     unsigned long now = millis();
-    if (now - lastUpload >= UPLOAD_INTERVAL)
+    /*if (now - lastUpload >= UPLOAD_INTERVAL)
     {
         uploadToFirebase(temperature, humidity, smokeDetected, lightLevel, statusLevel);
         lastUpload = now;
     }
-
+    */
+    Serial.print("temp: ");
+    Serial.print(temperature);
+    Serial.print(" hum: ");
+    Serial.print(humidity);
+    Serial.print(" smo: ");
+    Serial.print(smokeDetected);
+    Serial.print(" light: ");
+    Serial.print(lightLevel);
+    Serial.print(" sta: ");
+    Serial.println(statusLevel); // Dùng println ở cuối để xuống dòng
     /* ---- Small delay – keep loop responsive ------------------------------ */
     delay(200);   // 5 Hz refresh is more than enough for this demo
 }

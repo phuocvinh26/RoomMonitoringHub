@@ -72,10 +72,10 @@ const char* WIFI_PASSWORD = "vinh123490";      // <-- fill in your password
 #define DEVICE_ID        "ROOMHUB00001"
 #define UPLOAD_INTERVAL  5000UL      // ms (5 seconds)
 
-#define TEMP_WARNING    35.0        // °C → Level 2
-#define TEMP_DANGER     45.0        // °C → Level 3
-#define HUM_WARNING     80.0        // %   → Level 2
-#define HUM_DANGER      90.0        // %   → Level 3
+#define TEMP_WARNING    30.0        // °C → Level 2
+#define TEMP_DANGER     37.0        // °C → Level 3
+#define HUM_WARNING     70.0        // %   → Level 2
+#define HUM_DANGER      80.0        // %   → Level 3
 
 /* ----------  LEDC (buzzer) ---------- */
 #define BUZZER_CHANNEL   0          // LEDC channel 0 (0‑15)
@@ -106,12 +106,13 @@ const unsigned long DEBOUNCE_MS = 50;
  */
 uint8_t readLightLevel()
 {
-    int raw = analogRead(PIN_LDR);          // 0 … 4095
-    // Clamp just in case
-    raw = constrain(raw, 0, 4095);
-    // Map to 0‑10 (integer)
+    int raw = analogRead(PIN_LDR); 
+    
+    // 0-4095 sang 0-10
     uint8_t level = map(raw, 0, 4095, 0, 10);
-    return level;
+    
+    // Chặn an toàn
+    return constrain(level, 0, 10);
 }
 
 /**
@@ -205,23 +206,21 @@ void handleButton(uint8_t currentLevel)
  * @brief Refresh the OLED display with the latest sensor values.
  */
 void updateDisplay(float temperature, float humidity,
-                   bool smoke, uint8_t lightLevel,
-                   uint8_t statusLevel)
+                   bool wfStatus, uint8_t lightLevel)
 {
     display.clearDisplay();
-    display.setTextSize(1.2);
+    display.setTextSize(2);
     display.setTextColor(SSD1306_WHITE);
     display.setCursor(0, 0);
 
-    display.printf("Device: %s\n", DEVICE_ID);
-    display.printf("Temp: %.1f C\n", temperature);
-    display.printf("Hum : %.1f %%\n", humidity);
-    display.printf("Smoke: %s\n", smoke ? "YES" : "NO");
-    display.printf("Light: %u /10\n", lightLevel);
-    display.printf("Status: %s\n",
+    display.printf("Temp:%dC\n", temperature - floor(temperature) < 0.5 ? int(floor(temperature)) : int(ceil(temperature)));
+    display.printf("Hum:%d%\n", humidity - floor(humidity) < 0.5 ? int(floor(humidity)) : int(ceil(humidity)));
+    display.printf("Wifi:%s\n", wfStatus ? "YES" : "NO");
+    display.printf("Light:%u", lightLevel);
+    /*display.printf("Status: %s\n",
                    (statusLevel == 1) ? "NORMAL" :
                    (statusLevel == 2) ? "WARN"   : "DANGER");
-
+*/
     display.display();
 }
 
@@ -257,6 +256,7 @@ void uploadToFirebase(float temperature, float humidity,
 void setup()
 {
     Serial.begin(115200);
+    analogReadResolution(12);
     delay(1000);
     Serial.println("\n=== Room Monitoring Hub ===");
 
@@ -287,11 +287,13 @@ void setup()
     /* ---- Wi‑Fi ---- */
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     Serial.print("Connecting to Wi‑Fi");
+    /*
     while (WiFi.status() != WL_CONNECTED)
     {
         delay(500);
         Serial.print('.');
     }
+     */
     Serial.println("\n✅ Wi‑Fi connected");
     Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
@@ -318,6 +320,12 @@ void setup()
    ------------------------------------------------------------------------- */
 void loop()
 {
+    bool wfStatus =false;
+    if (WiFi.status() != WL_CONNECTED) {
+        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+        wfStatus = false;
+    }
+    else wfStatus = true;
     /* ---- 1. Read sensors ------------------------------------------------- */
     float temperature = dht.readTemperature();   // °C
     float humidity    = dht.readHumidity();      // %
@@ -339,7 +347,7 @@ void loop()
     handleButton(statusLevel);
 
     /* ---- 5. Update OLED -------------------------------------------------- */
-    updateDisplay(temperature, humidity, smokeDetected, lightLevel, statusLevel);
+    updateDisplay(temperature, humidity, wfStatus, lightLevel);
 
     /* ---- 6. Periodic Firebase upload ------------------------------------ */
     unsigned long now = millis();
@@ -357,6 +365,8 @@ void loop()
     Serial.print(smokeDetected);
     Serial.print(" light: ");
     Serial.print(lightLevel);
+    Serial.print(" Wfi: ");
+    Serial.print(wfStatus);
     Serial.print(" sta: ");
     Serial.println(statusLevel); // Dùng println ở cuối để xuống dòng
     /* ---- Small delay – keep loop responsive ------------------------------ */

@@ -65,17 +65,17 @@ const char* WIFI_SSID     = "kkk";      // <-- fill in your SSID
 const char* WIFI_PASSWORD = "vinh123490";      // <-- fill in your password
 
 // Firebase project details – replace with your own values
-#define FIREBASE_HOST    "your-project-id.firebaseio.com"
-#define FIREBASE_AUTH    "your-database-secret-or-auth-token"
+#define API_KEY "AIzaSyCBbT1282KcKWuQ2jRsH3XJ_Fya8PL3SA8"
+#define DATABASE_URL "room-monitoring-hub-47066-default-rtdb.asia-southeast1.firebasedatabase.app"
 
 /* ---------------------------  Other constants  -------------------------- */
 #define DEVICE_ID        "ROOMHUB00001"
 #define UPLOAD_INTERVAL  5000UL      // ms (5 seconds)
 
-#define TEMP_WARNING    30.0        // °C → Level 2
-#define TEMP_DANGER     37.0        // °C → Level 3
-#define HUM_WARNING     70.0        // %   → Level 2
-#define HUM_DANGER      80.0        // %   → Level 3
+float TEMP_WARNING = 30.0;
+float TEMP_DANGER  = 37.0;
+float HUM_WARNING  = 70.0;
+float HUM_DANGER   = 80.0;
 
 /* ----------  LEDC (buzzer) ---------- */
 #define BUZZER_CHANNEL   0          // LEDC channel 0 (0‑15)
@@ -249,6 +249,26 @@ void uploadToFirebase(float temperature, float humidity,
         Serial.printf("❌ Firebase error %s\n", fbdo.errorReason().c_str());
     }
 }
+void readSettingsFromFirebase() 
+{
+    // Kéo số temp_warning trên Firebase về
+    if (Firebase.RTDB.getFloat(&fbdo, "/roomhub/settings/temp_warning")) {
+        TEMP_WARNING = fbdo.floatData();
+    }
+    
+    if (Firebase.RTDB.getFloat(&fbdo, "/roomhub/settings/temp_danger")) {
+        TEMP_DANGER = fbdo.floatData();
+    }
+    // Kéo số hum_warning trên Firebase về
+    if (Firebase.RTDB.getFloat(&fbdo, "/roomhub/settings/hum_warning")) {
+        HUM_WARNING = fbdo.floatData();
+    }
+    
+    if (Firebase.RTDB.getFloat(&fbdo, "/roomhub/settings/hum_danger")) {
+        HUM_DANGER = fbdo.floatData();
+    }
+    // Bạn có thể copy thêm cho temp_danger, hum_danger nếu muốn
+}
 
 /* -------------------------------------------------------------------------
    Setup
@@ -286,31 +306,39 @@ void setup()
 
     /* ---- Wi‑Fi ---- */
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    WiFi.setAutoReconnect(true);
     Serial.print("Connecting to Wi‑Fi");
-    /*
-    while (WiFi.status() != WL_CONNECTED)
+    int retry = 0;
+    while (WiFi.status() != WL_CONNECTED && retry < 20)
     {
         delay(500);
         Serial.print('.');
+        retry++;
     }
-     */
-    Serial.println("\n✅ Wi‑Fi connected");
-    Serial.print("IP address: ");
-    Serial.println(WiFi.localIP());
+    if (WiFi.status() == WL_CONNECTED){
+        Serial.println("\n✅ Wi‑Fi connected");
+        Serial.print("IP address: ");
+        Serial.println(WiFi.localIP());
 
-    /* ---- Firebase ---- */
-    config.host = FIREBASE_HOST;
-    config.signer.tokens.legacy_token = FIREBASE_AUTH;   // for Realtime DB
-    // Optional: set a connection timeout, keep‑alive, etc.
-    /*if (!Firebase.begin(&config, &auth))
-    {
-        Serial.printf("❌ Firebase init failed: %s\n", auth.errorReason().c_str());
+        /* ---- Firebase ---- */
+        config.api_key = API_KEY;
+        config.database_url = DATABASE_URL;
+
+        config.token_status_callback = tokenStatusCallback;
+        config.signer.test_mode = true;
+
+        // Đăng nhập ẩn danh (không cần email/pass)
+        if (Firebase.signUp(&config, &auth, "", "")) {
+            Serial.println("✅ Firebase Authenticated");
+        } else {
+            Serial.printf("❌ Firebase error: %s\n", config.signer.signupError.message.c_str());
+        }
+        if (Firebase.ready()){
+            Firebase.begin(&config, &auth);
+            Firebase.reconnectWiFi(true);
+        }
     }
-    else
-    {
-        Serial.println("✅ Firebase initialized");
-    }*/
-
+    else Serial.println("No Wifi connected, Offline mode");
     /* ---- Initial state ---- */
     digitalWrite(PIN_LED_GREEN, HIGH);   // start in normal mode
 }
@@ -320,12 +348,7 @@ void setup()
    ------------------------------------------------------------------------- */
 void loop()
 {
-    bool wfStatus =false;
-    if (WiFi.status() != WL_CONNECTED) {
-        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-        wfStatus = false;
-    }
-    else wfStatus = true;
+    bool wfStatus = (WiFi.status() == WL_CONNECTED);
     /* ---- 1. Read sensors ------------------------------------------------- */
     float temperature = dht.readTemperature();   // °C
     float humidity    = dht.readHumidity();      // %
@@ -351,12 +374,17 @@ void loop()
 
     /* ---- 6. Periodic Firebase upload ------------------------------------ */
     unsigned long now = millis();
-    /*if (now - lastUpload >= UPLOAD_INTERVAL)
+    if (now - lastUpload >= UPLOAD_INTERVAL && Firebase.ready())
     {
+        // 1. Đẩy data cảm biến mới nhất lên Firebase
         uploadToFirebase(temperature, humidity, smokeDetected, lightLevel, statusLevel);
+        
+        // 2. Kéo cấu hình ngưỡng cảnh báo mới nhất từ Firebase về
+        readSettingsFromFirebase();
+        
         lastUpload = now;
     }
-    */
+    
     Serial.print("temp: ");
     Serial.print(temperature);
     Serial.print(" hum: ");

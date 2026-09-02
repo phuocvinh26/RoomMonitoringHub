@@ -77,6 +77,11 @@ const char* WIFI_PASSWORD = "vinh123490";      // <-- fill in your password
 #define HUM_WARNING     80.0        // %   → Level 2
 #define HUM_DANGER      90.0        // %   → Level 3
 
+/* ----------  LEDC (buzzer) ---------- */
+#define BUZZER_CHANNEL   0          // LEDC channel 0 (0‑15)
+#define BUZZER_FREQ      2000       // 2 kHz tone frequency
+#define BUZZER_RESOLUTION 8         // 8‑bit resolution (0‑255)
+
 /* ---------------------------  Global objects  --------------------------- */
 DHT dht(PIN_DHT, DHT22);
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
@@ -155,11 +160,11 @@ void applyOutputs(uint8_t level, bool smoke)
     if (level == 3 && !buzzerMuted)
     {
         // Continuous tone (2 kHz). Use tone() for an active buzzer.
-        tone(PIN_BUZZER, 2000);
+        ledcWrite(BUZZER_CHANNEL, 128); // 50% duty (2 kHz)
     }
     else
     {
-        noTone(PIN_BUZZER);
+        ledcWrite(BUZZER_CHANNEL, 0); // buzzer off
     }
 }
 
@@ -260,7 +265,10 @@ void setup()
     pinMode(PIN_LED_GREEN,  OUTPUT);
     pinMode(PIN_LED_YELLOW, OUTPUT);
     pinMode(PIN_LED_RED,    OUTPUT);
-    pinMode(PIN_BUZZER,     OUTPUT);
+    // LEDC (buzzer) initialization – moved to after pin setup
+    ledcSetup(BUZZER_CHANNEL, BUZZER_FREQ, BUZZER_RESOLUTION);
+    ledcAttachPin(PIN_BUZZER, BUZZER_CHANNEL);
+    ledcWrite(BUZZER_CHANNEL, 0); // buzzer off
     pinMode(PIN_BUTTON,     INPUT_PULLUP);        // internal pull‑up
 
     /* ---- Sensors ---- */

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="author" content="Nguyễn Lê Phước Vinh">
+    <title>Room Monitoring Hub Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .card { background: #eef2f3; padding: 15px; margin-bottom: 15px; border-radius: 6px; }
+        .form-group { margin-bottom: 10px; }
+        label { display: inline-block; width: 150px; font-weight: bold; }
+        input[type="number"] { width: 80px; padding: 5px; }
+        button { background: #007bff; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Room Monitoring Hub</h2>
+    <p>Author: Nguyễn Lê Phước Vinh</p>
+
+    <!-- Display from /roomhub/latest -->
+    <div class="card">
+        <h3>Thông số hiện tại</h3>
+        <p>Nhiệt độ: <span id="val-temp">--</span> °C</p>
+        <p>Độ ẩm: <span id="val-hum">--</span> %</p>
+        <p>Ánh sáng (Light Level): <span id="val-light">--</span></p>
+        <p>Khói: <span id="val-smoke">--</span></p>
+    </div>
+
+    <!-- Set a threshold /roomhub/settings -->
+    <div class="card">
+        <h3>Cài đặt ngưỡng cảnh báo</h3>
+        <div class="form-group">
+            <label>Nhiệt độ cảnh báo:</label>
+            <input type="number" id="input-temp-warn" step="0.5">
+        </div>
+        <div class="form-group">
+            <label>Nhiệt độ báo động:</label>
+            <input type="number" id="input-temp-danger" step="0.5">
+        </div>
+        <div class="form-group">
+            <label>Độ ẩm cảnh báo:</label>
+            <input type="number" id="input-hum-warn" step="0.5">
+        </div>
+        <div class="form-group">
+            <label>Độ ẩm báo động:</label>
+            <input type="number" id="input-hum-danger" step="0.5">
+        </div>
+        <button onclick="saveSettings()">Lưu cấu hình</button>
+    </div>
+</div>
+
+<!-- Firebase -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCBbT1282KcKWuQ2jRsH3XJ_Fya8PL3SA8",
+        databaseURL: "https://room-monitoring-hub-47066-default-rtdb.asia-southeast1.firebasedatabase.app/"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    
+    const auth = getAuth(app);
+    signInAnonymously(auth)
+        .then(() => {
+            console.log("🔒 Đã xác thực ẩn danh thành công!");
+        })
+        .catch((error) => {
+            console.error("❌ Lỗi đăng nhập ẩn danh:", error.message);
+        });
+
+    const latestRef = ref(db, 'roomhub/latest');
+    onValue(latestRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            document.getElementById('val-temp').innerText = data.temperature ?? '--';
+            document.getElementById('val-hum').innerText = data.humidity ?? '--';
+            document.getElementById('val-light').innerText = data.light_level ?? '--';
+            document.getElementById('val-smoke').innerText = data.smoke_detected ? '⚠️ CÓ KHÓI!' : 'An toàn';
+        }
+    });
+
+    const settingsRef = ref(db, 'roomhub/settings');
+    onValue(settingsRef, (snapshot) => {
+        const settings = snapshot.val();
+        if (settings) {
+            if (settings.temp_warning !== undefined) document.getElementById('input-temp-warn').value = settings.temp_warning;
+            if (settings.temp_danger !== undefined) document.getElementById('input-temp-danger').value = settings.temp_danger;
+            if (settings.hum_warning !== undefined) document.getElementById('input-hum-warn').value = settings.hum_warning;
+            if (settings.hum_danger !== undefined) document.getElementById('input-hum-danger').value = settings.hum_danger;
+        }
+    });
+
+    window.saveSettings = function() {
+        const tempWarn = parseFloat(document.getElementById('input-temp-warn').value);
+        const tempDanger = parseFloat(document.getElementById('input-temp-danger').value);
+        const humWarn = parseFloat(document.getElementById('input-hum-warn').value);
+        const humDanger = parseFloat(document.getElementById('input-hum-danger').value);
+
+        set(ref(db, 'roomhub/settings'), {
+            temp_warning: tempWarn,
+            temp_danger: tempDanger,
+            hum_warning: humWarn,
+            hum_danger: humDanger
+        }).then(() => {
+            alert("✅ Đã lưu cấu hình thành công!");
+        }).catch((error) => {
+            alert("❌ Lỗi khi lưu: " + error.message);
+        });
+    }
+</script>
+
+</body>
+</html>

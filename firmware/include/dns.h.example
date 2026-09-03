@@ -1,0 +1,11 @@
+#ifndef DNS_H
+#define DNS_H
+
+// Firebase 
+#define API_KEY "testkey"
+#define DATABASE_URL "urldatabase"
+
+// Wi‑Fi
+const char* WIFI_SSID     = "Example";      
+const char* WIFI_PASSWORD = "12345678"; 
+#endif

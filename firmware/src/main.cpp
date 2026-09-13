@@ -50,8 +50,8 @@ float HUM_WARNING  = 70.0;
 float HUM_DANGER   = 80.0;
 
 /* ----------  Buzzer ---------- */
-#define BUZZER_CHANNEL   0          
-#define BUZZER_FREQ      2000       // 2 kHz tone frequency
+//#define BUZZER_CHANNEL   16          
+#define BUZZER_FREQ      2700      // 2 kHz tone frequency
 #define BUZZER_RESOLUTION 8         // 8‑bit (0‑255)
 
 /* ---------------------------  Global  --------------------------- */
@@ -108,11 +108,11 @@ void applyOutputs(uint8_t level, bool smoke)
     // Buzzer
     if (level == 3 && !buzzerMuted)
     {
-        ledcWrite(BUZZER_CHANNEL, 128); // 2 kHz
+        digitalWrite(PIN_BUZZER, LOW);
     }
     else
     {
-        ledcWrite(BUZZER_CHANNEL, 0); // off
+        digitalWrite(PIN_BUZZER, HIGH);
     }
 }
 
@@ -212,9 +212,13 @@ void setup()
     pinMode(PIN_LED_YELLOW, OUTPUT);
     pinMode(PIN_LED_RED,    OUTPUT);
     // Buzzer
+    /*
     ledcSetup(BUZZER_CHANNEL, BUZZER_FREQ, BUZZER_RESOLUTION);
     ledcAttachPin(PIN_BUZZER, BUZZER_CHANNEL);
     ledcWrite(BUZZER_CHANNEL, 0); // buzzer off
+    */
+    digitalWrite(PIN_BUZZER, HIGH);
+    pinMode(PIN_BUZZER,    OUTPUT_OPEN_DRAIN);
     pinMode(PIN_BUTTON,     INPUT_PULLUP);        // pull‑up
 
     // Sensors

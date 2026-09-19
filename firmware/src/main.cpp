@@ -181,21 +181,33 @@ void uploadToFirebase(float temperature, float humidity,
 }
 void readSettingsFromFirebase() 
 {
-    // temp_warning
-    if (Firebase.RTDB.getFloat(&fbdo, "/roomhub/settings/temp_warning")) {
-        TEMP_WARNING = fbdo.floatData();
-    }
-    
-    if (Firebase.RTDB.getFloat(&fbdo, "/roomhub/settings/temp_danger")) {
-        TEMP_DANGER = fbdo.floatData();
-    }
-    // hum_warning
-    if (Firebase.RTDB.getFloat(&fbdo, "/roomhub/settings/hum_warning")) {
-        HUM_WARNING = fbdo.floatData();
-    }
-    
-    if (Firebase.RTDB.getFloat(&fbdo, "/roomhub/settings/hum_danger")) {
-        HUM_DANGER = fbdo.floatData();
+    if (Firebase.RTDB.getJSON(&fbdo, "/roomhub/settings")) 
+    {
+        FirebaseJson &json = fbdo.jsonObject();
+        FirebaseJsonData jsonData;
+
+        // Đọc temp_warning 
+        json.get(jsonData, "temp_warning");
+        if (jsonData.success) TEMP_WARNING = jsonData.floatValue;
+
+        // Đọc temp_danger
+        json.get(jsonData, "temp_danger");
+        if (jsonData.success) TEMP_DANGER = jsonData.floatValue;
+
+        // Đọc hum_warning
+        json.get(jsonData, "hum_warning");
+        if (jsonData.success) HUM_WARNING = jsonData.floatValue;
+
+        // Đọc hum_danger
+        json.get(jsonData, "hum_danger");
+        if (jsonData.success) HUM_DANGER = jsonData.floatValue;
+
+        Serial.printf(" Cập nhật ngưỡng: T_Warn=%.1f | T_Dang=%.1f | H_Warn=%.1f | H_Dang=%.1f\n",
+                      TEMP_WARNING, TEMP_DANGER, HUM_WARNING, HUM_DANGER);
+    } 
+    else 
+    {
+        Serial.printf("❌ Lỗi tải settings: %s\n", fbdo.errorReason().c_str());
     }
 }
 
